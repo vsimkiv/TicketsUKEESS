@@ -30,6 +30,6 @@ public class AuthController {
     @PostMapping("/sign-up")
     @ResponseStatus(OK)
     public Long signUp(@Valid @RequestBody SignUpRequest signUpRequest) {
-        return authService.registerUser(signUpRequest);
+        return authService.createUser(signUpRequest);
     }
 }

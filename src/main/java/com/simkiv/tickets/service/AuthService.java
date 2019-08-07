@@ -8,8 +8,12 @@ import com.simkiv.tickets.model.User;
 import com.simkiv.tickets.repository.UserRepository;
 import com.simkiv.tickets.security.JwtTokenProvider;
 import com.simkiv.tickets.security.UserPrincipal;
+import com.stripe.Stripe;
+import com.stripe.exception.StripeException;
+import com.stripe.model.Customer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -17,9 +21,15 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+
 @Service
 @Slf4j
 public class AuthService {
+    @Value("${stripe.keys.secret}")
+    private String stripeSecretKey;
 
     private AuthenticationManager authenticationManager;
     private UserRepository userRepository;
@@ -54,9 +64,9 @@ public class AuthService {
         return new JwtAuthenticationResponse(jwt);
     }
 
-    public Long registerUser(SignUpRequest signUpRequest) {
+    public Long createUser(SignUpRequest signUpRequest) {
 
-        if(userRepository.existsByEmail(signUpRequest.getEmail())) {
+        if (userRepository.existsByEmail(signUpRequest.getEmail())) {
             throw new ConflictException("Email [email: " + signUpRequest.getEmail() + "] is already taken");
         }
 
@@ -69,6 +79,36 @@ public class AuthService {
 
         log.info("Successfully registered user with [email: {}]", user.getEmail());
 
-        return userRepository.save(user).getId();
+        Optional<Customer> customer = createCustomer(signUpRequest);
+
+        if (customer.isPresent()) {
+            user.setStripeId(customer.get().getId());
+        } else {
+            log.info("Stripe customer was not created");
         }
+
+        User userFromDb = userRepository.save(user);
+        log.info(userFromDb.getStripeId());
+        return userFromDb.getId();
+    }
+
+    /**
+     * method for creation customer of stripe.com
+     */
+    private Optional<Customer> createCustomer(SignUpRequest signUpRequest) {
+        Stripe.apiKey = stripeSecretKey;
+
+        Map<String, Object> customerParams = new HashMap<>();
+
+        customerParams.put("description", "Customer for " + signUpRequest.getEmail());
+        customerParams.put("email", signUpRequest.getEmail());
+        customerParams.put("name", signUpRequest.getFirstName() + " " + signUpRequest.getLastName());
+
+        try {
+            return Optional.ofNullable(Customer.create(customerParams));
+        } catch (StripeException e) {
+            log.error(e.getMessage() + "Problem with stripe customer creation");
+        }
+        return Optional.empty();
+    }
 }
