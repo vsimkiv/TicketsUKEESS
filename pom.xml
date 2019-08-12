@@ -104,11 +104,10 @@
         </dependency>
 
         <dependency>
-            <groupId>com.stripe</groupId>
-            <artifactId>stripe-java</artifactId>
-            <version>10.12.1</version>
+            <groupId>com.braintreepayments.gateway</groupId>
+            <artifactId>braintree-java</artifactId>
+            <version>2.101.0</version>
         </dependency>
-
     </dependencies>
 
     <build>

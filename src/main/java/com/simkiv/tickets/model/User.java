@@ -44,9 +44,6 @@ public class User implements Serializable {
     @Size(min = 6, max = 100)
     private String password;
 
-    private String stripeId;
-
-
     public User(@NotBlank @Size(max = 100) @Email String email,
                 @NotBlank @Size(max = 40) String firstName,
                 @NotBlank @Size(max = 40) String lastName,
